@@ -14,6 +14,8 @@ export default function Home() {
   const [scrollY, setScrollY] = useState(0)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [isHovering, setIsHovering] = useState(false)
+  const [showESPage, setShowESPage] = useState(false)
+  const [isBackButtonHovering, setIsBackButtonHovering] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,15 +26,51 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // 인솔러 상자 클릭 핸들러
+  const handleInsoleClick = (e) => {
+    const currentScrollProgress = Math.min(scrollY / 1000, 1)
+    
+    // main2가 거의 올라왔을 때만 클릭 가능 (스크롤 진행도 0.7 이상)
+    if (currentScrollProgress < 0.7) return
+    
+    // 첫 번째 상자(인솔러) 영역 체크
+    const insoleZone = hoverZones[0] // 첫 번째 상자
+    const currentMain2TranslateY = (1 - currentScrollProgress) * 100
+    const main2Top = (currentMain2TranslateY / 100) * window.innerHeight
+    const main2Width = window.innerWidth
+    const main2Height = window.innerHeight
+    
+    const zoneLeft = (insoleZone.x / 100) * main2Width
+    const zoneTop = main2Top + (insoleZone.y / 100) * main2Height
+    const zoneRight = zoneLeft + (insoleZone.width / 100) * main2Width
+    const zoneBottom = zoneTop + (insoleZone.height / 100) * main2Height
+    
+    if (e.clientX >= zoneLeft && e.clientX <= zoneRight && 
+        e.clientY >= zoneTop && e.clientY <= zoneBottom) {
+      setShowESPage(true)
+    }
+  }
+
   useEffect(() => {
     const handleMouseMove = (e) => {
       setMousePos({ x: e.clientX, y: e.clientY })
+      
+      // ES 페이지에서는 뒤로가기 버튼 호버 체크만
+      if (showESPage) {
+        // 뒤로가기 버튼 영역 (왼쪽 상단 70x70 영역)
+        const backButtonHover = e.clientX >= 20 && e.clientX <= 90 && 
+                               e.clientY >= 20 && e.clientY <= 90
+        setIsBackButtonHovering(backButtonHover)
+        setIsHovering(false)
+        return
+      }
       
       const currentScrollProgress = Math.min(scrollY / 1000, 1)
       
       // main2가 거의 올라왔을 때만 호버 감지 (스크롤 진행도 0.7 이상)
       if (currentScrollProgress < 0.7) {
         setIsHovering(false)
+        setIsBackButtonHovering(false)
         return
       }
 
@@ -46,7 +84,8 @@ export default function Home() {
       let hovering = false
       
       // 각 호버 영역 체크
-      for (let zone of hoverZones) {
+      for (let i = 0; i < hoverZones.length; i++) {
+        const zone = hoverZones[i]
         const zoneLeft = main2Left + (zone.x / 100) * main2Width
         const zoneTop = main2Top + (zone.y / 100) * main2Height
         const zoneRight = zoneLeft + (zone.width / 100) * main2Width
@@ -61,11 +100,17 @@ export default function Home() {
       
       // 명시적으로 호버 상태 설정
       setIsHovering(hovering)
+      setIsBackButtonHovering(false)
     }
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true })
-    return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [scrollY])
+    window.addEventListener('click', handleInsoleClick)
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('click', handleInsoleClick)
+    }
+  }, [scrollY, showESPage])
 
   // 스크롤 진행도 계산 (0~1)
   const maxScroll = 1000 // 1000px 스크롤하면 완료
@@ -79,7 +124,79 @@ export default function Home() {
 
   return (
     <>
-      {/* 스크롤 가능한 높이 생성 */}
+      {/* ES.png 페이지 */}
+      {showESPage && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 10000,
+          backgroundColor: 'white'
+        }}>
+          <img 
+            src="/es.png" 
+            alt="ES 페이지"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              objectPosition: 'center'
+            }}
+          />
+          {/* 뒤로가기 버튼 */}
+          <button
+            onClick={() => setShowESPage(false)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              left: '20px',
+              backgroundColor: isBackButtonHovering ? 'rgba(0, 0, 0, 0.9)' : 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '70px',
+              height: '70px',
+              fontSize: '32px',
+              fontWeight: 'bold',
+              cursor: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10001,
+              transition: 'background-color 0.2s ease',
+              lineHeight: '1',
+              paddingLeft: '3px' // 화살표를 중앙에 맞추기 위한 미세 조정
+            }}
+          >
+            ←
+          </button>
+
+          {/* ES 페이지용 노란 원 커서 */}
+          <div 
+            style={{
+              position: 'fixed',
+              left: mousePos.x - 40,
+              top: mousePos.y - 40,
+              width: '80px',
+              height: '80px',
+              backgroundColor: isBackButtonHovering ? '#FFD700' : '#FFEB3B',
+              borderRadius: '50%',
+              pointerEvents: 'none',
+              zIndex: 10002,
+              transition: 'background-color 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease',
+              transform: isBackButtonHovering ? 'scale(1.3)' : 'scale(1)',
+              boxShadow: isBackButtonHovering 
+                ? '0 0 30px #FFD700, 0 0 60px #FFD700, 0 0 90px #FFD700' 
+                : '0 0 15px rgba(255, 235, 59, 0.5)',
+              opacity: 0.9
+            }}
+          />
+        </div>
+      )}
+
+      {/* 기존 메인 페이지 */}
       <div style={{ height: '200vh', position: 'relative' }}>
         
         {/* main.png - 고정된 배경 */}
@@ -126,34 +243,37 @@ export default function Home() {
           />
         </div>
 
-        {/* 노란 원 커서 */}
-        <div 
-          style={{
-            position: 'fixed',
-            left: mousePos.x - 40,
-            top: mousePos.y - 40,
-            width: '80px',
-            height: '80px',
-            backgroundColor: isHovering ? '#FFD700' : '#FFEB3B',
-            borderRadius: '50%',
-            pointerEvents: 'none',
-            zIndex: 9999,
-            transition: 'background-color 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease',
-            transform: isHovering ? 'scale(1.3)' : 'scale(1)',
-            boxShadow: isHovering 
-              ? '0 0 30px #FFD700, 0 0 60px #FFD700, 0 0 90px #FFD700' 
-              : '0 0 15px rgba(255, 235, 59, 0.5)',
-            opacity: 0.9
-          }}
-        />
+        {/* 메인 페이지용 노란 원 커서 */}
+        {!showESPage && (
+          <div 
+            style={{
+              position: 'fixed',
+              left: mousePos.x - 40,
+              top: mousePos.y - 40,
+              width: '80px',
+              height: '80px',
+              backgroundColor: isHovering ? '#FFD700' : '#FFEB3B',
+              borderRadius: '50%',
+              pointerEvents: 'none',
+              zIndex: 9999,
+              transition: 'background-color 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease',
+              transform: isHovering ? 'scale(1.3)' : 'scale(1)',
+              boxShadow: isHovering 
+                ? '0 0 30px #FFD700, 0 0 60px #FFD700, 0 0 90px #FFD700' 
+                : '0 0 15px rgba(255, 235, 59, 0.5)',
+              opacity: 0.9
+            }}
+          />
+        )}
 
-        {/* 기본 커서 숨기기 */}
-        <style jsx global>{`
-          * {
-            cursor: none !important;
-          }
-        `}</style>
       </div>
+
+      {/* 전역 커서 숨기기 */}
+      <style jsx global>{`
+        * {
+          cursor: none !important;
+        }
+      `}</style>
     </>
   )
 } 
