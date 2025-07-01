@@ -14,7 +14,7 @@ export default function Home() {
   const [scrollY, setScrollY] = useState(0)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [isHovering, setIsHovering] = useState(false)
-  const [showESPage, setShowESPage] = useState(false)
+  const [currentPage, setCurrentPage] = useState(null) // null=메인, 'insole', 'mealtune', 'pibit', 'murmur', 'vaya', 'closie'
   const [isBackButtonHovering, setIsBackButtonHovering] = useState(false)
 
   useEffect(() => {
@@ -26,28 +26,34 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // 인솔러 상자 클릭 핸들러
-  const handleInsoleClick = (e) => {
+  // 상자 클릭 핸들러 (모든 상자 대응)
+  const handleBoxClick = (e) => {
     const currentScrollProgress = Math.min(scrollY / 1000, 1)
     
     // main2가 거의 올라왔을 때만 클릭 가능 (스크롤 진행도 0.7 이상)
     if (currentScrollProgress < 0.7) return
     
-    // 첫 번째 상자(인솔러) 영역 체크
-    const insoleZone = hoverZones[0] // 첫 번째 상자
+    // 각 상자 영역과 페이지 매핑
+    const pageMapping = ['insole', 'mealtune', 'pibit', 'murmur', 'vaya', 'closie']
+    
     const currentMain2TranslateY = (1 - currentScrollProgress) * 100
     const main2Top = (currentMain2TranslateY / 100) * window.innerHeight
     const main2Width = window.innerWidth
     const main2Height = window.innerHeight
     
-    const zoneLeft = (insoleZone.x / 100) * main2Width
-    const zoneTop = main2Top + (insoleZone.y / 100) * main2Height
-    const zoneRight = zoneLeft + (insoleZone.width / 100) * main2Width
-    const zoneBottom = zoneTop + (insoleZone.height / 100) * main2Height
-    
-    if (e.clientX >= zoneLeft && e.clientX <= zoneRight && 
-        e.clientY >= zoneTop && e.clientY <= zoneBottom) {
-      setShowESPage(true)
+    // 각 상자 영역 체크
+    for (let i = 0; i < hoverZones.length; i++) {
+      const zone = hoverZones[i]
+      const zoneLeft = (zone.x / 100) * main2Width
+      const zoneTop = main2Top + (zone.y / 100) * main2Height
+      const zoneRight = zoneLeft + (zone.width / 100) * main2Width
+      const zoneBottom = zoneTop + (zone.height / 100) * main2Height
+      
+      if (e.clientX >= zoneLeft && e.clientX <= zoneRight && 
+          e.clientY >= zoneTop && e.clientY <= zoneBottom) {
+        setCurrentPage(pageMapping[i])
+        break
+      }
     }
   }
 
@@ -55,8 +61,8 @@ export default function Home() {
     const handleMouseMove = (e) => {
       setMousePos({ x: e.clientX, y: e.clientY })
       
-      // ES 페이지에서는 뒤로가기 버튼 호버 체크만
-      if (showESPage) {
+      // 상세 페이지에서는 뒤로가기 버튼 호버 체크만
+      if (currentPage) {
         // 뒤로가기 버튼 영역 (왼쪽 상단 70x70 영역)
         const backButtonHover = e.clientX >= 20 && e.clientX <= 90 && 
                                e.clientY >= 20 && e.clientY <= 90
@@ -104,13 +110,13 @@ export default function Home() {
     }
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true })
-    window.addEventListener('click', handleInsoleClick)
+    window.addEventListener('click', handleBoxClick)
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('click', handleInsoleClick)
+      window.removeEventListener('click', handleBoxClick)
     }
-  }, [scrollY, showESPage])
+  }, [scrollY, currentPage])
 
   // 스크롤 진행도 계산 (0~1)
   const maxScroll = 1000 // 1000px 스크롤하면 완료
@@ -122,10 +128,35 @@ export default function Home() {
   // main2.png 위치 (아래에서 위로)
   const main2TranslateY = (1 - scrollProgress) * 100
 
+  // 페이지별 이미지 매핑
+  const getPageImage = (page) => {
+    const imageMap = {
+      'insole': '/es.png',
+      'mealtune': '/te.png', 
+      'pibit': '/ju.png',
+      'murmur': '/jm.png',
+      'vaya': '/hj.png',
+      'closie': '/sy.png'
+    }
+    return imageMap[page]
+  }
+
+  const getPageTitle = (page) => {
+    const titleMap = {
+      'insole': 'INSOLE°R',
+      'mealtune': 'MealTune',
+      'pibit': 'PIBIT', 
+      'murmur': 'Murmur',
+      'vaya': 'VĀYA',
+      'closie': 'Closie'
+    }
+    return titleMap[page]
+  }
+
   return (
     <>
-      {/* ES.png 페이지 */}
-      {showESPage && (
+      {/* 상세 페이지 */}
+      {currentPage && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -136,8 +167,8 @@ export default function Home() {
           backgroundColor: 'white'
         }}>
           <img 
-            src="/es.png" 
-            alt="ES 페이지"
+            src={getPageImage(currentPage)}
+            alt={`${getPageTitle(currentPage)} 페이지`}
             style={{
               width: '100%',
               height: '100%',
@@ -147,7 +178,7 @@ export default function Home() {
           />
           {/* 뒤로가기 버튼 */}
           <button
-            onClick={() => setShowESPage(false)}
+            onClick={() => setCurrentPage(null)}
             style={{
               position: 'absolute',
               top: '20px',
@@ -173,7 +204,7 @@ export default function Home() {
             ←
           </button>
 
-          {/* ES 페이지용 노란 원 커서 */}
+          {/* 상세 페이지용 노란 원 커서 */}
           <div 
             style={{
               position: 'fixed',
@@ -244,7 +275,7 @@ export default function Home() {
         </div>
 
         {/* 메인 페이지용 노란 원 커서 */}
-        {!showESPage && (
+        {!currentPage && (
           <div 
             style={{
               position: 'fixed',
