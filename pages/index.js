@@ -22,7 +22,7 @@ export default function Home() {
 
   // 이미지 프리로딩 (페이지별로 필요할 때만)
   useEffect(() => {
-    if (currentPage && ['mealtune', 'murmur', 'insole'].includes(currentPage)) {
+    if (currentPage && ['mealtune', 'murmur', 'insole', 'closie', 'vaya'].includes(currentPage)) {
       const secondImage = getSecondPageImage(currentPage)
       if (secondImage && !loadedImages.has(secondImage)) {
         setIsLoading(true)
@@ -194,6 +194,12 @@ export default function Home() {
     if (page === 'insole') {
       return '/es2.png'
     }
+    if (page === 'closie') {
+      return '/sy2.png'
+    }
+    if (page === 'vaya') {
+      return '/hj2.png'
+    }
     return null
   }
 
@@ -228,8 +234,8 @@ export default function Home() {
           zIndex: 10000,
           backgroundColor: 'white'
         }}>
-          {/* MealTune, Murmur, Insole 페이지인 경우 스크롤 효과를 위해 높이 추가 */}
-          {(currentPage === 'mealtune' || currentPage === 'murmur' || currentPage === 'insole') && (
+                      {/* 스크롤 효과가 적용되는 페이지들 */}
+          {(currentPage === 'mealtune' || currentPage === 'murmur' || currentPage === 'insole' || currentPage === 'closie' || currentPage === 'vaya') && (
             <>
               {/* 로딩 인디케이터 */}
               {isLoading && (
@@ -323,7 +329,7 @@ export default function Home() {
           )}
 
           {/* 다른 페이지들은 기존 방식 유지 */}
-          {currentPage !== 'mealtune' && currentPage !== 'murmur' && currentPage !== 'insole' && (
+          {currentPage !== 'mealtune' && currentPage !== 'murmur' && currentPage !== 'insole' && currentPage !== 'closie' && currentPage !== 'vaya' && (
             <img 
               src={getPageImage(currentPage)}
               alt={`${getPageTitle(currentPage)} 페이지`}
