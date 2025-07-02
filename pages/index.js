@@ -12,6 +12,7 @@ const hoverZones = [
 
 export default function Home() {
   const [scrollY, setScrollY] = useState(0)
+  const [detailScrollY, setDetailScrollY] = useState(0) // 상세 페이지 스크롤 상태
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [isHovering, setIsHovering] = useState(false)
   const [currentPage, setCurrentPage] = useState(null) // null=메인, 'insole', 'mealtune', 'pibit', 'murmur', 'vaya', 'closie'
@@ -19,12 +20,24 @@ export default function Home() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrollY(window.scrollY)
+      if (currentPage) {
+        setDetailScrollY(window.scrollY)
+      } else {
+        setScrollY(window.scrollY)
+      }
     }
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [currentPage])
+
+  // 페이지 전환 시 스크롤 위치 초기화
+  useEffect(() => {
+    if (currentPage) {
+      window.scrollTo(0, 0)
+      setDetailScrollY(0)
+    }
+  }, [currentPage])
 
   // 상자 클릭 핸들러 (모든 상자 대응)
   const handleBoxClick = (e) => {
@@ -141,6 +154,14 @@ export default function Home() {
     return imageMap[page]
   }
 
+  // MealTune 페이지의 두 번째 이미지 매핑
+  const getSecondPageImage = (page) => {
+    if (page === 'mealtune') {
+      return '/te2.png'
+    }
+    return null
+  }
+
   const getPageTitle = (page) => {
     const titleMap = {
       'insole': 'INSOLE°R',
@@ -152,6 +173,12 @@ export default function Home() {
     }
     return titleMap[page]
   }
+
+  // 상세 페이지 스크롤 계산 (MealTune 페이지용)
+  const detailMaxScroll = 1000 // 1000px 스크롤하면 te2.png로 전환 완료
+  const detailScrollProgress = Math.min(detailScrollY / detailMaxScroll, 1)
+  const detailFirstImageOpacity = 1 - detailScrollProgress
+  const detailSecondImageTranslateY = (1 - detailScrollProgress) * 100
 
   return (
     <>
@@ -166,21 +193,77 @@ export default function Home() {
           zIndex: 10000,
           backgroundColor: 'white'
         }}>
-          <img 
-            src={getPageImage(currentPage)}
-            alt={`${getPageTitle(currentPage)} 페이지`}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              objectPosition: 'center'
-            }}
-          />
+          {/* MealTune 페이지인 경우 스크롤 효과를 위해 높이 추가 */}
+          {currentPage === 'mealtune' && (
+            <div style={{ height: '800vh', position: 'relative' }}>
+              {/* 첫 번째 이미지 (te.png) - 스크롤하면 불투명해짐 */}
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                zIndex: 10001,
+                opacity: detailFirstImageOpacity
+              }}>
+                <img 
+                  src={getPageImage(currentPage)}
+                  alt={`${getPageTitle(currentPage)} 페이지`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    objectPosition: 'center'
+                  }}
+                />
+              </div>
+
+              {/* 두 번째 이미지 (te2.png) - 스크롤에 따라 올라오고 크기 조절 */}
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                zIndex: 10002,
+                transform: `translateY(${detailSecondImageTranslateY}vh)`,
+                overflow: detailScrollProgress >= 0.7 ? 'auto' : 'hidden', // 70% 지점부터 스크롤 가능
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-start'
+              }}>
+                <img 
+                  src={getSecondPageImage(currentPage)}
+                  alt={`${getPageTitle(currentPage)} 두 번째 페이지`}
+                  style={{
+                    width: '85%', // 전체 크기를 85%로 줄여서 좌우 여백 생성
+                    height: 'auto',
+                    display: 'block'
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 다른 페이지들은 기존 방식 유지 */}
+          {currentPage !== 'mealtune' && (
+            <img 
+              src={getPageImage(currentPage)}
+              alt={`${getPageTitle(currentPage)} 페이지`}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                objectPosition: 'center'
+              }}
+            />
+          )}
+
           {/* 뒤로가기 버튼 */}
           <button
             onClick={() => setCurrentPage(null)}
             style={{
-              position: 'absolute',
+              position: 'fixed',
               top: '20px',
               left: '20px',
               backgroundColor: isBackButtonHovering ? 'rgba(0, 0, 0, 0.9)' : 'rgba(0, 0, 0, 0.7)',
@@ -195,10 +278,10 @@ export default function Home() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              zIndex: 10001,
+              zIndex: 10010,
               transition: 'background-color 0.2s ease',
               lineHeight: '1',
-              paddingLeft: '3px' // 화살표를 중앙에 맞추기 위한 미세 조정
+              paddingLeft: '3px'
             }}
           >
             ←
@@ -215,7 +298,7 @@ export default function Home() {
               backgroundColor: isBackButtonHovering ? '#FFD700' : '#FFEB3B',
               borderRadius: '50%',
               pointerEvents: 'none',
-              zIndex: 10002,
+              zIndex: 10011,
               transition: 'background-color 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease',
               transform: isBackButtonHovering ? 'scale(1.3)' : 'scale(1)',
               boxShadow: isBackButtonHovering 
