@@ -22,7 +22,7 @@ export default function Home() {
 
   // 이미지 프리로딩 (페이지별로 필요할 때만)
   useEffect(() => {
-    if (currentPage && ['mealtune', 'murmur', 'insole', 'closie', 'vaya'].includes(currentPage)) {
+    if (currentPage && ['mealtune', 'murmur', 'insole', 'pibit', 'closie', 'vaya'].includes(currentPage)) {
       const secondImage = getSecondPageImage(currentPage)
       if (secondImage && !loadedImages.has(secondImage)) {
         setIsLoading(true)
@@ -194,6 +194,9 @@ export default function Home() {
     if (page === 'insole') {
       return '/es2.png'
     }
+    if (page === 'pibit') {
+      return '/ju2.png'
+    }
     if (page === 'closie') {
       return '/sy2.png'
     }
@@ -235,7 +238,7 @@ export default function Home() {
           backgroundColor: 'white'
         }}>
                       {/* 스크롤 효과가 적용되는 페이지들 */}
-          {(currentPage === 'mealtune' || currentPage === 'murmur' || currentPage === 'insole' || currentPage === 'closie' || currentPage === 'vaya') && (
+          {(currentPage === 'mealtune' || currentPage === 'murmur' || currentPage === 'insole' || currentPage === 'pibit' || currentPage === 'closie' || currentPage === 'vaya') && (
             <>
               {/* 로딩 인디케이터 */}
               {isLoading && (
@@ -329,7 +332,7 @@ export default function Home() {
           )}
 
           {/* 다른 페이지들은 기존 방식 유지 */}
-          {currentPage !== 'mealtune' && currentPage !== 'murmur' && currentPage !== 'insole' && currentPage !== 'closie' && currentPage !== 'vaya' && (
+          {currentPage !== 'mealtune' && currentPage !== 'murmur' && currentPage !== 'insole' && currentPage !== 'pibit' && currentPage !== 'closie' && currentPage !== 'vaya' && (
             <img 
               src={getPageImage(currentPage)}
               alt={`${getPageTitle(currentPage)} 페이지`}
@@ -343,32 +346,33 @@ export default function Home() {
           )}
 
           {/* 뒤로가기 버튼 */}
-          <button
+          <div
             onClick={() => setCurrentPage(null)}
             style={{
               position: 'fixed',
-              top: '20px',
-              left: '20px',
-              backgroundColor: isBackButtonHovering ? 'rgba(0, 0, 0, 0.9)' : 'rgba(0, 0, 0, 0.7)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '50%',
-              width: '70px',
-              height: '70px',
-              fontSize: '32px',
-              fontWeight: 'bold',
+              top: '30px',
+              left: '30px',
+              width: '80px',
+              height: '80px',
               cursor: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               zIndex: 10010,
-              transition: 'background-color 0.2s ease',
-              lineHeight: '1',
-              paddingLeft: '3px'
+              transition: 'transform 0.2s ease, opacity 0.2s ease',
+              transform: isBackButtonHovering ? 'scale(1.2)' : 'scale(1)',
+              opacity: isBackButtonHovering ? 0.8 : 1
             }}
           >
-            ←
-          </button>
+            <img 
+              src="/back.png"
+              alt="뒤로가기"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                filter: isBackButtonHovering ? 'brightness(1.2)' : 'brightness(1)',
+                transition: 'filter 0.2s ease'
+              }}
+            />
+          </div>
 
           {/* 상세 페이지용 노란 원 커서 */}
           <div 
