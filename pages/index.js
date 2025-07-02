@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 
 // 6개 점선 상자 영역 정의 (화면 비율 기준) - 점선 상자와 정확히 일치하도록 조정
 const hoverZones = [
@@ -21,6 +22,24 @@ export default function Home() {
   const [loadedImages, setLoadedImages] = useState(new Set())
   const [windowHeight, setWindowHeight] = useState(1000) // 창 높이 상태
   const [showDebug, setShowDebug] = useState(false) // 디버깅 정보 표시 여부
+  const [backgroundLoading, setBackgroundLoading] = useState(true) // 백그라운드 로딩 상태
+  const [loadingProgress, setLoadingProgress] = useState(0) // 로딩 진행률
+
+  // 스크롤 진행도 계산 (0~1) - 메인 페이지용 (반응형으로 개선)
+  const maxScroll = Math.max(600, windowHeight * 1.0) // 최소 600px, 또는 화면 높이만큼
+  const scrollProgress = Math.min(scrollY / maxScroll, 1)
+  
+  // 상세 페이지 스크롤 계산 - 더 안정적인 계산
+  const detailMaxScroll = Math.max(800, windowHeight * 1.2) // 최소 800px, 또는 화면 높이의 1.2배
+  const detailScrollProgress = Math.min(detailScrollY / detailMaxScroll, 1)
+  const detailFirstImageOpacity = Math.max(0, 1 - detailScrollProgress * 1.5) // 더 빨리 사라지도록
+  const detailSecondImageTranslateY = Math.max(0, (1 - detailScrollProgress * 1.2) * 100) // 더 빨리 올라오도록
+
+  // main.png 불투명도 (스크롤하면 어두워짐)
+  const mainOpacity = 1 - scrollProgress
+  
+  // main2.png 위치 (아래에서 위로)
+  const main2TranslateY = (1 - scrollProgress) * 100
 
   // 창 크기 변화 감지
   useEffect(() => {
@@ -51,13 +70,60 @@ export default function Home() {
     }
   }, [])
 
+  // 메인 페이지에서 백그라운드 이미지 프리로딩
+  useEffect(() => {
+    if (!currentPage) { // 메인 페이지에서만
+      const imagesToPreload = [
+        '/es.png', '/es2.png',
+        '/te.png', '/te2.png', 
+        '/ju.png', '/ju2.png',
+        '/jm.png', '/jm2.png',
+        '/hj.png', '/hj2.png',
+        '/sy.png', '/sy2.png'
+      ]
+
+      let loadedCount = 0
+      const totalImages = imagesToPreload.length
+
+      setBackgroundLoading(true)
+      setLoadingProgress(0)
+
+      imagesToPreload.forEach((imageSrc, index) => {
+        // 우선순위가 높은 첫 번째 이미지들을 먼저 로딩
+        const delay = imageSrc.includes('2.png') ? 2000 : 0 // 두 번째 이미지들은 2초 후에 로딩
+
+        setTimeout(() => {
+          const img = new window.Image()
+          img.onload = () => {
+            loadedCount++
+            setLoadingProgress((loadedCount / totalImages) * 100)
+            setLoadedImages(prev => new Set([...prev, imageSrc]))
+            
+            if (loadedCount === totalImages) {
+              setBackgroundLoading(false)
+            }
+          }
+          img.onerror = () => {
+            loadedCount++
+            setLoadingProgress((loadedCount / totalImages) * 100)
+            
+            if (loadedCount === totalImages) {
+              setBackgroundLoading(false)
+            }
+          }
+          img.src = imageSrc
+        }, delay)
+      })
+    }
+  }, [currentPage])
+
   // 이미지 프리로딩 (페이지별로 필요할 때만)
   useEffect(() => {
     if (currentPage && ['mealtune', 'murmur', 'insole', 'pibit', 'closie', 'vaya'].includes(currentPage)) {
       const secondImage = getSecondPageImage(currentPage)
       if (secondImage && !loadedImages.has(secondImage)) {
         setIsLoading(true)
-        const img = new Image()
+        const img = new window.Image() // window.Image로 명시적 접근
         img.onload = () => {
           setLoadedImages(prev => new Set([...prev, secondImage]))
           setIsLoading(false)
@@ -66,6 +132,8 @@ export default function Home() {
           setIsLoading(false)
         }
         img.src = secondImage
+      } else if (secondImage && loadedImages.has(secondImage)) {
+        setIsLoading(false) // 이미 로드된 경우 즉시 로딩 완료
       }
     }
   }, [currentPage, loadedImages])
@@ -91,11 +159,19 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [currentPage])
 
-  // 페이지 전환 시 스크롤 위치 초기화
+  // 페이지 전환 시 스크롤 위치 초기화 및 로딩 상태 설정
   useEffect(() => {
     if (currentPage) {
       window.scrollTo(0, 0)
       setDetailScrollY(0)
+      
+      // 페이지 전환 시 잠깐 로딩 표시 (UX 개선)
+      setIsLoading(true)
+      setTimeout(() => {
+        if (loadedImages.has(getSecondPageImage(currentPage))) {
+          setIsLoading(false)
+        }
+      }, 300)
     }
   }, [currentPage])
 
@@ -136,9 +212,9 @@ export default function Home() {
       
       // 상세 페이지에서는 뒤로가기 버튼 호버 체크만
       if (currentPage) {
-        // 뒤로가기 버튼 영역 (왼쪽 상단 70x70 영역)
-        const backButtonHover = e.clientX >= 20 && e.clientX <= 90 && 
-                               e.clientY >= 20 && e.clientY <= 90
+        // 뒤로가기 버튼 영역 (왼쪽 상단 80x80 영역)
+        const backButtonHover = e.clientX >= 30 && e.clientX <= 110 && 
+                               e.clientY >= 30 && e.clientY <= 110
         setIsBackButtonHovering(backButtonHover)
         setIsHovering(false)
         return
@@ -161,6 +237,7 @@ export default function Home() {
       const main2Height = window.innerHeight
 
       let hovering = false
+      let hoveredProject = null
       
       // 각 호버 영역 체크
       for (let i = 0; i < hoverZones.length; i++) {
@@ -173,7 +250,36 @@ export default function Home() {
         if (e.clientX >= zoneLeft && e.clientX <= zoneRight && 
             e.clientY >= zoneTop && e.clientY <= zoneBottom) {
           hovering = true
+          // 프로젝트 매핑
+          const projects = ['insole', 'mealtune', 'pibit', 'murmur', 'vaya', 'closie']
+          hoveredProject = projects[i]
           break // 하나라도 호버되면 break
+        }
+      }
+      
+      // 호버된 프로젝트의 이미지 즉시 프리로딩
+      if (hoveredProject && ['mealtune', 'murmur', 'insole', 'pibit', 'closie', 'vaya'].includes(hoveredProject)) {
+        const firstImage = getPageImage(hoveredProject)
+        const secondImage = getSecondPageImage(hoveredProject)
+        
+        // 첫 번째 이미지 프리로딩
+        if (firstImage && !loadedImages.has(firstImage)) {
+          const img1 = new window.Image()
+          img1.onload = () => {
+            setLoadedImages(prev => new Set([...prev, firstImage]))
+          }
+          img1.src = firstImage
+        }
+        
+        // 두 번째 이미지 프리로딩 (우선순위 낮음)
+        if (secondImage && !loadedImages.has(secondImage)) {
+          setTimeout(() => {
+            const img2 = new window.Image()
+            img2.onload = () => {
+              setLoadedImages(prev => new Set([...prev, secondImage]))
+            }
+            img2.src = secondImage
+          }, 500) // 500ms 후 로딩
         }
       }
       
@@ -189,23 +295,7 @@ export default function Home() {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('click', handleBoxClick)
     }
-  }, [scrollY, currentPage])
-
-  // 스크롤 진행도 계산 (0~1) - 메인 페이지용
-  const maxScroll = 1000 // 1000px 스크롤하면 완료
-  const scrollProgress = Math.min(scrollY / maxScroll, 1)
-  
-  // 상세 페이지 스크롤 계산 - 더 안정적인 계산
-  const detailMaxScroll = Math.max(800, windowHeight * 1.2) // 최소 800px, 또는 화면 높이의 1.2배
-  const detailScrollProgress = Math.min(detailScrollY / detailMaxScroll, 1)
-  const detailFirstImageOpacity = Math.max(0, 1 - detailScrollProgress * 1.5) // 더 빨리 사라지도록
-  const detailSecondImageTranslateY = Math.max(0, (1 - detailScrollProgress * 1.2) * 100) // 더 빨리 올라오도록
-
-  // main.png 불투명도 (스크롤하면 어두워짐)
-  const mainOpacity = 1 - scrollProgress
-  
-  // main2.png 위치 (아래에서 위로)
-  const main2TranslateY = (1 - scrollProgress) * 100
+  }, [scrollY, currentPage, maxScroll, loadedImages])
 
   // 페이지별 이미지 매핑
   const getPageImage = (page) => {
@@ -258,7 +348,7 @@ export default function Home() {
   return (
     <>
       {/* 디버깅 정보 (Ctrl+D로 토글 가능) */}
-      {showDebug && currentPage && ['mealtune', 'murmur', 'insole', 'pibit', 'closie', 'vaya'].includes(currentPage) && (
+      {showDebug && (
         <div style={{
           position: 'fixed',
           top: '10px',
@@ -272,15 +362,35 @@ export default function Home() {
           fontFamily: 'monospace',
           border: '1px solid #333'
         }}>
-          <div style={{ marginBottom: '5px', fontWeight: 'bold', color: '#FFD700' }}>디버그 정보 (Ctrl+D로 숨기기)</div>
-          <div>화면 높이: {windowHeight}px</div>
-          <div>스크롤: {detailScrollY}px</div>
-          <div>최대 스크롤: {detailMaxScroll.toFixed(0)}px</div>
-          <div>진행도: {(detailScrollProgress * 100).toFixed(1)}%</div>
-          <div>첫번째 불투명도: {detailFirstImageOpacity.toFixed(2)}</div>
-          <div>두번째 Y위치: {detailSecondImageTranslateY.toFixed(1)}vh</div>
-          <div>스크롤 활성화: {detailScrollProgress >= 0.5 ? 'YES' : 'NO'}</div>
-          <div>컨테이너 높이: {Math.max(windowHeight * 4, 2000)}px</div>
+          <div style={{ marginBottom: '5px', fontWeight: 'bold', color: '#FFD700' }}>
+            디버그 정보 (Ctrl+D로 숨기기) - {currentPage || '메인'}
+          </div>
+          
+          {!currentPage ? (
+            // 메인 페이지 디버깅 정보
+            <>
+              <div>화면 높이: {windowHeight}px</div>
+              <div>메인 스크롤: {scrollY}px</div>
+              <div>메인 최대 스크롤: {maxScroll.toFixed(0)}px</div>
+              <div>메인 진행도: {(scrollProgress * 100).toFixed(1)}%</div>
+              <div>main.png 불투명도: {mainOpacity.toFixed(2)}</div>
+              <div>main2.png Y위치: {main2TranslateY.toFixed(1)}vh</div>
+            </>
+          ) : (
+            // 상세 페이지 디버깅 정보
+            ['mealtune', 'murmur', 'insole', 'pibit', 'closie', 'vaya'].includes(currentPage) && (
+              <>
+                <div>화면 높이: {windowHeight}px</div>
+                <div>스크롤: {detailScrollY}px</div>
+                <div>최대 스크롤: {detailMaxScroll.toFixed(0)}px</div>
+                <div>진행도: {(detailScrollProgress * 100).toFixed(1)}%</div>
+                <div>첫번째 불투명도: {detailFirstImageOpacity.toFixed(2)}</div>
+                <div>두번째 Y위치: {detailSecondImageTranslateY.toFixed(1)}vh</div>
+                <div>스크롤 활성화: {detailScrollProgress >= 0.5 ? 'YES' : 'NO'}</div>
+                <div>컨테이너 높이: {Math.max(windowHeight * 4, 2000)}px</div>
+              </>
+            )
+          )}
         </div>
       )}
 
@@ -295,38 +405,9 @@ export default function Home() {
           zIndex: 10000,
           backgroundColor: 'white'
         }}>
-                      {/* 스크롤 효과가 적용되는 페이지들 */}
+          {/* 스크롤 효과가 적용되는 페이지들 */}
           {(currentPage === 'mealtune' || currentPage === 'murmur' || currentPage === 'insole' || currentPage === 'pibit' || currentPage === 'closie' || currentPage === 'vaya') && (
             <>
-              {/* 로딩 인디케이터 */}
-              {isLoading && (
-                <div style={{
-                  position: 'fixed',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: 10020,
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  borderRadius: '10px',
-                  padding: '20px',
-                  color: 'white',
-                  fontSize: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px'
-                }}>
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    border: '2px solid #f3f3f3',
-                    borderTop: '2px solid #FFD700',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }}></div>
-                  이미지 로딩 중...
-                </div>
-              )}
-
               <div style={{ height: `${Math.max(windowHeight * 4, 2000)}px`, position: 'relative' }}>
                 {/* 첫 번째 이미지 - 스크롤하면 불투명해짐 */}
                 <div style={{
@@ -340,15 +421,16 @@ export default function Home() {
                   backfaceVisibility: 'hidden',
                   transform: 'translateZ(0)'
                 }}>
-                  <img 
+                  <Image 
                     src={getPageImage(currentPage)}
                     alt={`${getPageTitle(currentPage)} 페이지`}
+                    fill
                     style={{
-                      width: '100%',
-                      height: '100%',
                       objectFit: 'contain',
                       objectPosition: 'center'
                     }}
+                    priority={true}
+                    quality={90}
                   />
                 </div>
 
@@ -374,6 +456,7 @@ export default function Home() {
                     msOverflowStyle: 'none', // IE/Edge
                     scrollBehavior: 'smooth'
                   }}>
+                    {/* 긴 스크롤 이미지는 기존 img 태그 유지 (디자인 보존) */}
                     <img 
                       src={getSecondPageImage(currentPage)}
                       alt={`${getPageTitle(currentPage)} 두 번째 페이지`}
@@ -394,15 +477,16 @@ export default function Home() {
 
           {/* 다른 페이지들은 기존 방식 유지 */}
           {currentPage !== 'mealtune' && currentPage !== 'murmur' && currentPage !== 'insole' && currentPage !== 'pibit' && currentPage !== 'closie' && currentPage !== 'vaya' && (
-            <img 
+            <Image 
               src={getPageImage(currentPage)}
               alt={`${getPageTitle(currentPage)} 페이지`}
+              fill
               style={{
-                width: '100%',
-                height: '100%',
                 objectFit: 'contain',
                 objectPosition: 'center'
               }}
+              priority={true}
+              quality={90}
             />
           )}
 
@@ -419,19 +503,18 @@ export default function Home() {
               zIndex: 10010,
               transition: 'transform 0.2s ease, opacity 0.2s ease',
               transform: isBackButtonHovering ? 'scale(1.2)' : 'scale(1)',
-              opacity: isBackButtonHovering ? 0.8 : 1
+              opacity: isBackButtonHovering ? 0.8 : 1,
+              filter: isBackButtonHovering ? 'brightness(1.2)' : 'brightness(1)'
             }}
           >
-            <img 
+            <Image 
               src="/back.png"
               alt="뒤로가기"
+              fill
               style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                filter: isBackButtonHovering ? 'brightness(1.2)' : 'brightness(1)',
-                transition: 'filter 0.2s ease'
+                objectFit: 'contain'
               }}
+              quality={100}
             />
           </div>
 
@@ -459,7 +542,7 @@ export default function Home() {
       )}
 
       {/* 기존 메인 페이지 */}
-      <div style={{ height: '200vh', position: 'relative' }}>
+      <div style={{ height: `${Math.max(windowHeight * 2.5, 1500)}px`, position: 'relative' }}>
         
         {/* main.png - 고정된 배경 */}
         <div style={{
@@ -473,15 +556,16 @@ export default function Home() {
           backfaceVisibility: 'hidden',
           transform: 'translateZ(0)'
         }}>
-          <img 
+          <Image 
             src="/main.png" 
             alt="메인 이미지"
+            fill
             style={{
-              width: '100%',
-              height: '100%',
               objectFit: 'contain',
               objectPosition: 'center'
             }}
+            priority={true}
+            quality={90}
           />
         </div>
 
@@ -496,15 +580,16 @@ export default function Home() {
           transform: `translateY(${main2TranslateY}vh)`,
           backfaceVisibility: 'hidden'
         }}>
-          <img 
+          <Image 
             src="/main2.png" 
             alt="두 번째 이미지"
+            fill
             style={{
-              width: '100%',
-              height: '100%',
               objectFit: 'contain',
               objectPosition: 'center'
             }}
+            priority={true}
+            quality={90}
           />
         </div>
 
@@ -532,6 +617,81 @@ export default function Home() {
         )}
 
       </div>
+
+      {/* 메인 페이지 백그라운드 로딩 인디케이터 */}
+      {!currentPage && backgroundLoading && (
+        <div style={{
+          position: 'fixed',
+          bottom: '30px',
+          right: '30px',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          borderRadius: '10px',
+          padding: '15px 20px',
+          color: 'white',
+          fontSize: '14px',
+          zIndex: 10025,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+        }}>
+          <div style={{
+            width: '20px',
+            height: '20px',
+            border: '2px solid #333',
+            borderTop: '2px solid #FFD700',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <div>
+            <div>이미지 로딩 중...</div>
+            <div style={{ fontSize: '12px', color: '#ccc' }}>
+              {Math.round(loadingProgress)}% 완료
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 페이지별 로딩 인디케이터 (더 크고 잘 보이게) */}
+      {currentPage && isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          zIndex: 10050,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #FFD700',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            marginBottom: '20px'
+          }}></div>
+          <div style={{
+            fontSize: '18px',
+            color: '#333',
+            fontWeight: 'bold'
+          }}>
+            {getPageTitle(currentPage)} 로딩 중...
+          </div>
+          <div style={{
+            fontSize: '14px',
+            color: '#666',
+            marginTop: '10px'
+          }}>
+            잠시만 기다려주세요
+          </div>
+        </div>
+      )}
 
       {/* 전역 커서 숨기기 및 스크롤바 숨기기 */}
       <style jsx global>{`
