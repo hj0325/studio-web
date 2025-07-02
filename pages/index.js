@@ -314,7 +314,7 @@ export default function Home() {
                     overflow: detailScrollProgress >= 0.7 ? 'scroll' : 'hidden',
                     scrollbarWidth: 'none', // Firefox
                     msOverflowStyle: 'none', // IE/Edge
-                    WebkitScrollbar: { display: 'none' } // Chrome/Safari - 이건 CSS에서 처리 필요
+                    scrollBehavior: 'smooth'
                   }}>
                     <img 
                       src={getSecondPageImage(currentPage)}
@@ -322,7 +322,10 @@ export default function Home() {
                       style={{
                         width: '100%',
                         height: 'auto',
-                        display: 'block'
+                        display: 'block',
+                        maxWidth: '100%',
+                        outline: 'none',
+                        border: 'none'
                       }}
                     />
                   </div>
@@ -478,9 +481,34 @@ export default function Home() {
           cursor: none !important;
         }
         
-        /* 스크롤바 숨기기 */
+        /* 모든 스크롤바 완전히 숨기기 */
         ::-webkit-scrollbar {
-          display: none;
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+        
+        ::-webkit-scrollbar-track {
+          display: none !important;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+          display: none !important;
+        }
+        
+        ::-webkit-scrollbar-corner {
+          display: none !important;
+        }
+        
+        /* Firefox 스크롤바 숨기기 */
+        * {
+          scrollbar-width: none !important;
+          scrollbar-color: transparent transparent !important;
+        }
+        
+        /* IE/Edge 스크롤바 숨기기 */
+        * {
+          -ms-overflow-style: none !important;
         }
         
         /* 로딩 애니메이션 */
