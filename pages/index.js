@@ -24,6 +24,9 @@ export default function Home() {
   const [showDebug, setShowDebug] = useState(false) // 디버깅 정보 표시 여부
   const [backgroundLoading, setBackgroundLoading] = useState(true) // 백그라운드 로딩 상태
   const [loadingProgress, setLoadingProgress] = useState(0) // 로딩 진행률
+  const [inactivityTimer, setInactivityTimer] = useState(null) // 비활성 타이머
+  const [remainingTime, setRemainingTime] = useState(60) // 남은 시간 (초)
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false) // 경고 표시
 
   // 스크롤 진행도 계산 (0~1) - 메인 페이지용 (반응형으로 개선)
   const maxScroll = Math.max(600, windowHeight * 1.0) // 최소 600px, 또는 화면 높이만큼
@@ -40,6 +43,80 @@ export default function Home() {
   
   // main2.png 위치 (아래에서 위로)
   const main2TranslateY = (1 - scrollProgress) * 100
+
+  // 사용자 활동 감지 및 비활성 타이머 관리
+  const resetInactivityTimer = () => {
+    // 기존 타이머 제거
+    if (inactivityTimer) {
+      clearTimeout(inactivityTimer)
+    }
+    
+    // 경고 숨기기
+    setShowInactivityWarning(false)
+    setRemainingTime(60)
+    
+    // 상세 페이지에서만 타이머 작동
+    if (currentPage) {
+      // 50초 후 경고 표시 (10초 경고)
+      const warningTimer = setTimeout(() => {
+        setShowInactivityWarning(true)
+        setRemainingTime(10)
+        
+        // 카운트다운 시작
+        let countdown = 10
+        const countdownInterval = setInterval(() => {
+          countdown--
+          setRemainingTime(countdown)
+          
+          if (countdown <= 0) {
+            clearInterval(countdownInterval)
+          }
+        }, 1000)
+        
+        // 10초 후 메인으로 돌아가기
+        const finalTimer = setTimeout(() => {
+          setCurrentPage(null)
+          setShowInactivityWarning(false)
+          setRemainingTime(60)
+          clearInterval(countdownInterval)
+        }, 10000)
+        
+        setInactivityTimer(finalTimer)
+      }, 50000)
+      
+      setInactivityTimer(warningTimer)
+    }
+  }
+
+  // 사용자 활동 감지 이벤트들
+  useEffect(() => {
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click']
+    
+    activityEvents.forEach(event => {
+      window.addEventListener(event, resetInactivityTimer, { passive: true })
+    })
+    
+    // 페이지 전환 시 타이머 시작
+    if (currentPage) {
+      resetInactivityTimer()
+    } else {
+      // 메인 페이지에서는 타이머 제거
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer)
+        setInactivityTimer(null)
+      }
+      setShowInactivityWarning(false)
+    }
+    
+    return () => {
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, resetInactivityTimer)
+      })
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer)
+      }
+    }
+  }, [currentPage, inactivityTimer])
 
   // 창 크기 변화 감지
   useEffect(() => {
@@ -689,6 +766,66 @@ export default function Home() {
             marginTop: '10px'
           }}>
             잠시만 기다려주세요
+          </div>
+        </div>
+      )}
+
+      {/* 비활성 경고 메시지 */}
+      {showInactivityWarning && currentPage && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 10060,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '20px',
+            padding: '40px',
+            textAlign: 'center',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+            maxWidth: '400px',
+            margin: '20px'
+          }}>
+            <div style={{
+              fontSize: '24px',
+              color: '#333',
+              fontWeight: 'bold',
+              marginBottom: '20px'
+            }}>
+              잠깐만요!
+            </div>
+            <div style={{
+              fontSize: '16px',
+              color: '#666',
+              marginBottom: '30px',
+              lineHeight: '1.5'
+            }}>
+              {remainingTime}초 후 메인 화면으로<br/>
+              돌아갑니다
+            </div>
+            <div style={{
+              fontSize: '48px',
+              color: '#FFD700',
+              fontWeight: 'bold',
+              marginBottom: '30px'
+            }}>
+              {remainingTime}
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: '#999'
+            }}>
+              계속 보시려면 화면을 터치하거나<br/>
+              마우스를 움직여주세요
+            </div>
           </div>
         </div>
       )}
