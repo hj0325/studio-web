@@ -19,6 +19,26 @@ export default function Home() {
   const [isBackButtonHovering, setIsBackButtonHovering] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadedImages, setLoadedImages] = useState(new Set())
+  const [windowHeight, setWindowHeight] = useState(1000) // 창 높이 상태
+
+  // 창 크기 변화 감지
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowHeight(window.innerHeight)
+    }
+    
+    // 초기 설정
+    if (typeof window !== 'undefined') {
+      setWindowHeight(window.innerHeight)
+      window.addEventListener('resize', handleResize)
+    }
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize)
+      }
+    }
+  }, [])
 
   // 이미지 프리로딩 (페이지별로 필요할 때만)
   useEffect(() => {
@@ -160,10 +180,16 @@ export default function Home() {
     }
   }, [scrollY, currentPage])
 
-  // 스크롤 진행도 계산 (0~1)
+  // 스크롤 진행도 계산 (0~1) - 메인 페이지용
   const maxScroll = 1000 // 1000px 스크롤하면 완료
   const scrollProgress = Math.min(scrollY / maxScroll, 1)
   
+  // 상세 페이지 스크롤 계산 - 화면 높이에 비례하여 계산
+  const detailMaxScroll = windowHeight * 1.5 // 화면 높이의 1.5배만큼 스크롤해야 전환 완료
+  const detailScrollProgress = Math.min(detailScrollY / detailMaxScroll, 1)
+  const detailFirstImageOpacity = 1 - detailScrollProgress
+  const detailSecondImageTranslateY = (1 - detailScrollProgress) * 100
+
   // main.png 불투명도 (스크롤하면 어두워짐)
   const mainOpacity = 1 - scrollProgress
   
@@ -218,14 +244,30 @@ export default function Home() {
     return titleMap[page]
   }
 
-  // 상세 페이지 스크롤 계산 (MealTune 페이지용)
-  const detailMaxScroll = 1000 // 1000px 스크롤하면 te2.png로 전환 완료
-  const detailScrollProgress = Math.min(detailScrollY / detailMaxScroll, 1)
-  const detailFirstImageOpacity = 1 - detailScrollProgress
-  const detailSecondImageTranslateY = (1 - detailScrollProgress) * 100
-
   return (
     <>
+      {/* 디버깅 정보 (개발 환경에서만 표시) */}
+      {process.env.NODE_ENV === 'development' && currentPage && ['mealtune', 'murmur', 'insole', 'pibit', 'closie', 'vaya'].includes(currentPage) && (
+        <div style={{
+          position: 'fixed',
+          top: '10px',
+          right: '10px',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          padding: '10px',
+          borderRadius: '5px',
+          fontSize: '12px',
+          zIndex: 10030,
+          fontFamily: 'monospace'
+        }}>
+          <div>화면 높이: {windowHeight}px</div>
+          <div>스크롤: {detailScrollY}px</div>
+          <div>최대 스크롤: {detailMaxScroll.toFixed(0)}px</div>
+          <div>진행도: {(detailScrollProgress * 100).toFixed(1)}%</div>
+          <div>스크롤 활성화: {detailScrollProgress >= 0.6 ? 'YES' : 'NO'}</div>
+        </div>
+      )}
+
       {/* 상세 페이지 */}
       {currentPage && (
         <div style={{
@@ -269,7 +311,7 @@ export default function Home() {
                 </div>
               )}
 
-              <div style={{ height: '400vh', position: 'relative' }}>
+              <div style={{ height: `${Math.max(400, windowHeight * 3)}px`, position: 'relative' }}>
                 {/* 첫 번째 이미지 - 스크롤하면 불투명해짐 */}
                 <div style={{
                   position: 'fixed',
@@ -311,7 +353,7 @@ export default function Home() {
                   <div style={{
                     width: '85%',
                     height: '100vh',
-                    overflow: detailScrollProgress >= 0.7 ? 'scroll' : 'hidden',
+                    overflow: detailScrollProgress >= 0.6 ? 'scroll' : 'hidden', // 60%로 조정하여 더 빨리 스크롤 가능
                     scrollbarWidth: 'none', // Firefox
                     msOverflowStyle: 'none', // IE/Edge
                     scrollBehavior: 'smooth'
