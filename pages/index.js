@@ -17,17 +17,46 @@ export default function Home() {
   const [isHovering, setIsHovering] = useState(false)
   const [currentPage, setCurrentPage] = useState(null) // null=메인, 'insole', 'mealtune', 'pibit', 'murmur', 'vaya', 'closie'
   const [isBackButtonHovering, setIsBackButtonHovering] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadedImages, setLoadedImages] = useState(new Set())
+
+  // 이미지 프리로딩 (페이지별로 필요할 때만)
+  useEffect(() => {
+    if (currentPage && ['mealtune', 'murmur', 'insole'].includes(currentPage)) {
+      const secondImage = getSecondPageImage(currentPage)
+      if (secondImage && !loadedImages.has(secondImage)) {
+        setIsLoading(true)
+        const img = new Image()
+        img.onload = () => {
+          setLoadedImages(prev => new Set([...prev, secondImage]))
+          setIsLoading(false)
+        }
+        img.onerror = () => {
+          setIsLoading(false)
+        }
+        img.src = secondImage
+      }
+    }
+  }, [currentPage, loadedImages])
 
   useEffect(() => {
+    let ticking = false
+
     const handleScroll = () => {
-      if (currentPage) {
-        setDetailScrollY(window.scrollY)
-      } else {
-        setScrollY(window.scrollY)
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          if (currentPage) {
+            setDetailScrollY(window.scrollY)
+          } else {
+            setScrollY(window.scrollY)
+          }
+          ticking = false
+        })
+        ticking = true
       }
     }
 
-    window.addEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [currentPage])
 
@@ -159,6 +188,12 @@ export default function Home() {
     if (page === 'mealtune') {
       return '/te2.png'
     }
+    if (page === 'murmur') {
+      return '/jm2.png'
+    }
+    if (page === 'insole') {
+      return '/es2.png'
+    }
     return null
   }
 
@@ -193,60 +228,102 @@ export default function Home() {
           zIndex: 10000,
           backgroundColor: 'white'
         }}>
-          {/* MealTune 페이지인 경우 스크롤 효과를 위해 높이 추가 */}
-          {currentPage === 'mealtune' && (
-            <div style={{ height: '800vh', position: 'relative' }}>
-              {/* 첫 번째 이미지 (te.png) - 스크롤하면 불투명해짐 */}
-              <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                zIndex: 10001,
-                opacity: detailFirstImageOpacity
-              }}>
-                <img 
-                  src={getPageImage(currentPage)}
-                  alt={`${getPageTitle(currentPage)} 페이지`}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    objectPosition: 'center'
-                  }}
-                />
-              </div>
+          {/* MealTune, Murmur, Insole 페이지인 경우 스크롤 효과를 위해 높이 추가 */}
+          {(currentPage === 'mealtune' || currentPage === 'murmur' || currentPage === 'insole') && (
+            <>
+              {/* 로딩 인디케이터 */}
+              {isLoading && (
+                <div style={{
+                  position: 'fixed',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 10020,
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  borderRadius: '10px',
+                  padding: '20px',
+                  color: 'white',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    border: '2px solid #f3f3f3',
+                    borderTop: '2px solid #FFD700',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  이미지 로딩 중...
+                </div>
+              )}
 
-              {/* 두 번째 이미지 (te2.png) - 스크롤에 따라 올라오고 크기 조절 */}
-              <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                zIndex: 10002,
-                transform: `translateY(${detailSecondImageTranslateY}vh)`,
-                overflow: detailScrollProgress >= 0.7 ? 'auto' : 'hidden', // 70% 지점부터 스크롤 가능
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'flex-start'
-              }}>
-                <img 
-                  src={getSecondPageImage(currentPage)}
-                  alt={`${getPageTitle(currentPage)} 두 번째 페이지`}
-                  style={{
-                    width: '85%', // 전체 크기를 85%로 줄여서 좌우 여백 생성
-                    height: 'auto',
-                    display: 'block'
-                  }}
-                />
+              <div style={{ height: '400vh', position: 'relative' }}>
+                {/* 첫 번째 이미지 - 스크롤하면 불투명해짐 */}
+                <div style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  width: '100vw',
+                  height: '100vh',
+                  zIndex: 10001,
+                  opacity: detailFirstImageOpacity,
+                  backfaceVisibility: 'hidden',
+                  transform: 'translateZ(0)'
+                }}>
+                  <img 
+                    src={getPageImage(currentPage)}
+                    alt={`${getPageTitle(currentPage)} 페이지`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      objectPosition: 'center'
+                    }}
+                  />
+                </div>
+
+                {/* 두 번째 이미지 - 스크롤에 따라 올라오고 크기 조절 */}
+                <div style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  width: '100vw',
+                  height: '100vh',
+                  zIndex: 10002,
+                  transform: `translateY(${detailSecondImageTranslateY}vh)`,
+                  backfaceVisibility: 'hidden',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'flex-start'
+                }}>
+                  <div style={{
+                    width: '85%',
+                    height: '100vh',
+                    overflow: detailScrollProgress >= 0.7 ? 'scroll' : 'hidden',
+                    scrollbarWidth: 'none', // Firefox
+                    msOverflowStyle: 'none', // IE/Edge
+                    WebkitScrollbar: { display: 'none' } // Chrome/Safari - 이건 CSS에서 처리 필요
+                  }}>
+                    <img 
+                      src={getSecondPageImage(currentPage)}
+                      alt={`${getPageTitle(currentPage)} 두 번째 페이지`}
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        display: 'block'
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* 다른 페이지들은 기존 방식 유지 */}
-          {currentPage !== 'mealtune' && (
+          {currentPage !== 'mealtune' && currentPage !== 'murmur' && currentPage !== 'insole' && (
             <img 
               src={getPageImage(currentPage)}
               alt={`${getPageTitle(currentPage)} 페이지`}
@@ -321,7 +398,9 @@ export default function Home() {
           width: '100vw',
           height: '100vh',
           zIndex: 1,
-          opacity: mainOpacity
+          opacity: mainOpacity,
+          backfaceVisibility: 'hidden',
+          transform: 'translateZ(0)'
         }}>
           <img 
             src="/main.png" 
@@ -343,7 +422,8 @@ export default function Home() {
           width: '100vw',
           height: '100vh',
           zIndex: 2,
-          transform: `translateY(${main2TranslateY}vh)`
+          transform: `translateY(${main2TranslateY}vh)`,
+          backfaceVisibility: 'hidden'
         }}>
           <img 
             src="/main2.png" 
@@ -382,10 +462,21 @@ export default function Home() {
 
       </div>
 
-      {/* 전역 커서 숨기기 */}
+      {/* 전역 커서 숨기기 및 스크롤바 숨기기 */}
       <style jsx global>{`
         * {
           cursor: none !important;
+        }
+        
+        /* 스크롤바 숨기기 */
+        ::-webkit-scrollbar {
+          display: none;
+        }
+        
+        /* 로딩 애니메이션 */
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </>
