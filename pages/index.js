@@ -287,17 +287,14 @@ export default function Home() {
     const handleMouseMove = (e) => {
       setMousePos({ x: e.clientX, y: e.clientY })
       
-      // 상세 페이지에서는 뒤로가기 버튼 호버 체크만
+      // 상세 페이지에서는 뒤로가기 버튼 호버 체크 제거
       if (currentPage) {
-        // 뒤로가기 버튼 영역 (왼쪽 상단 80x80 영역)
-        const backButtonHover = e.clientX >= 30 && e.clientX <= 110 && 
-                               e.clientY >= 30 && e.clientY <= 110
-        setIsBackButtonHovering(backButtonHover)
         setIsHovering(false)
+        setIsBackButtonHovering(false) // 호버 효과 제거
         return
       }
       
-      const currentScrollProgress = Math.min(scrollY / 1000, 1)
+      const currentScrollProgress = Math.min(scrollY / maxScroll, 1)
       
       // main2가 거의 올라왔을 때만 호버 감지 (스크롤 진행도 0.7 이상)
       if (currentScrollProgress < 0.7) {
@@ -314,9 +311,8 @@ export default function Home() {
       const main2Height = window.innerHeight
 
       let hovering = false
-      let hoveredProject = null
       
-      // 각 호버 영역 체크
+      // 각 호버 영역 체크 (클릭 영역 확인용으로만 사용)
       for (let i = 0; i < hoverZones.length; i++) {
         const zone = hoverZones[i]
         const zoneLeft = main2Left + (zone.x / 100) * main2Width
@@ -327,41 +323,12 @@ export default function Home() {
         if (e.clientX >= zoneLeft && e.clientX <= zoneRight && 
             e.clientY >= zoneTop && e.clientY <= zoneBottom) {
           hovering = true
-          // 프로젝트 매핑
-          const projects = ['insole', 'mealtune', 'pibit', 'murmur', 'vaya', 'closie']
-          hoveredProject = projects[i]
           break // 하나라도 호버되면 break
         }
       }
       
-      // 호버된 프로젝트의 이미지 즉시 프리로딩
-      if (hoveredProject && ['mealtune', 'murmur', 'insole', 'pibit', 'closie', 'vaya'].includes(hoveredProject)) {
-        const firstImage = getPageImage(hoveredProject)
-        const secondImage = getSecondPageImage(hoveredProject)
-        
-        // 첫 번째 이미지 프리로딩
-        if (firstImage && !loadedImages.has(firstImage)) {
-          const img1 = new window.Image()
-          img1.onload = () => {
-            setLoadedImages(prev => new Set([...prev, firstImage]))
-          }
-          img1.src = firstImage
-        }
-        
-        // 두 번째 이미지 프리로딩 (우선순위 낮음)
-        if (secondImage && !loadedImages.has(secondImage)) {
-          setTimeout(() => {
-            const img2 = new window.Image()
-            img2.onload = () => {
-              setLoadedImages(prev => new Set([...prev, secondImage]))
-            }
-            img2.src = secondImage
-          }, 500) // 500ms 후 로딩
-        }
-      }
-      
-      // 명시적으로 호버 상태 설정
-      setIsHovering(hovering)
+      // 호버 상태 설정 (호버 효과는 제거하지만 영역 감지는 유지)
+      setIsHovering(false) // 호버 효과 제거
       setIsBackButtonHovering(false)
     }
 
@@ -577,11 +544,8 @@ export default function Home() {
               width: '80px',
               height: '80px',
               cursor: 'none',
-              zIndex: 10010,
-              transition: 'transform 0.2s ease, opacity 0.2s ease',
-              transform: isBackButtonHovering ? 'scale(1.2)' : 'scale(1)',
-              opacity: isBackButtonHovering ? 0.8 : 1,
-              filter: isBackButtonHovering ? 'brightness(1.2)' : 'brightness(1)'
+              zIndex: 10010
+              // 호버 효과 제거: transition, transform, opacity, filter 제거
             }}
           >
             <Image 
@@ -603,16 +567,13 @@ export default function Home() {
               top: mousePos.y - 40,
               width: '80px',
               height: '80px',
-              backgroundColor: isBackButtonHovering ? '#FFD700' : '#FFEB3B',
+              backgroundColor: '#FFEB3B', // 고정 색상
               borderRadius: '50%',
               pointerEvents: 'none',
               zIndex: 10011,
-              transition: 'background-color 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease',
-              transform: isBackButtonHovering ? 'scale(1.3)' : 'scale(1)',
-              boxShadow: isBackButtonHovering 
-                ? '0 0 30px #FFD700, 0 0 60px #FFD700, 0 0 90px #FFD700' 
-                : '0 0 15px rgba(255, 235, 59, 0.5)',
-              opacity: 0.9
+              opacity: 0.9,
+              boxShadow: '0 0 15px rgba(255, 235, 59, 0.5)' // 고정 그림자
+              // 호버 효과 제거: transition, transform, 조건부 스타일 제거
             }}
           />
         </div>
@@ -679,16 +640,13 @@ export default function Home() {
               top: mousePos.y - 40,
               width: '80px',
               height: '80px',
-              backgroundColor: isHovering ? '#FFD700' : '#FFEB3B',
+              backgroundColor: '#FFEB3B', // 고정 색상
               borderRadius: '50%',
               pointerEvents: 'none',
               zIndex: 9999,
-              transition: 'background-color 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease',
-              transform: isHovering ? 'scale(1.3)' : 'scale(1)',
-              boxShadow: isHovering 
-                ? '0 0 30px #FFD700, 0 0 60px #FFD700, 0 0 90px #FFD700' 
-                : '0 0 15px rgba(255, 235, 59, 0.5)',
-              opacity: 0.9
+              opacity: 0.9,
+              boxShadow: '0 0 15px rgba(255, 235, 59, 0.5)' // 고정 그림자
+              // 호버 효과 제거: transition, transform, 조건부 스타일 제거
             }}
           />
         )}
